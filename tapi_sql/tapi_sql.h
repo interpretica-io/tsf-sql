@@ -375,7 +375,8 @@ extern te_errno tapi_sql_connect_err(rcf_rpc_server *rpcs,
 /**
  * Close a connection. Statements prepared on it are released on the
  * agent; their #tapi_sql_stmt objects must still be freed with
- * tapi_sql_statement_free().
+ * tapi_sql_statement_free(), which is all that may be done with them
+ * from then on.
  *
  * @param conn  Connection, or @c NULL.
  *

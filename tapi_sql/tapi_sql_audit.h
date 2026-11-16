@@ -174,8 +174,10 @@ extern te_errno tapi_sql_audit_auth(rcf_rpc_server *rpcs,
 
 /**
  * Privilege separation: a statement this account must not be allowed.
- * It is run inside a transaction that is rolled back whatever happens.
- * Allowed is @c sql.privsep.allowed (HIGH); refused for lack of
+ * It is run inside a transaction that is rolled back whatever happens
+ * (MySQL / MariaDB commit a data-definition statement on the spot, so
+ * there a CREATE or a DROP that is allowed stays done: clean up after
+ * it). Allowed is @c sql.privsep.allowed (HIGH); refused for lack of
  * privilege is the expected outcome; failing for another reason is
  * @c sql.privsep.not-assessed.
  *

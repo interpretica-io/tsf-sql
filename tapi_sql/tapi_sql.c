@@ -66,6 +66,8 @@ struct tapi_sql_conn {
 
 struct tapi_sql_stmt {
     tapi_sql_conn  *conn;
+    rcf_rpc_server *rpcs;       /**< Outlives @c conn: a statement may
+                                     be freed after its connection. */
     int             handle;
     unsigned int    nparams;
     unsigned int    ncols;
@@ -896,6 +898,7 @@ tapi_sql_prepare(tapi_sql_conn *conn, const char *sql, tapi_sql_stmt **stmt)
 
     s = TE_ALLOC(sizeof(*s));
     s->conn = conn;
+    s->rpcs = conn->rpcs;
     s->handle = handle;
     s->nparams = (unsigned int)nparams;
     *stmt = s;
@@ -996,7 +999,7 @@ tapi_sql_statement_free(tapi_sql_stmt *stmt)
     if (stmt == NULL)
         return 0;
 
-    rc = rpc_sql_stmt_free(stmt->conn->rpcs, stmt->handle);
+    rc = rpc_sql_stmt_free(stmt->rpcs, stmt->handle);
     /* Closing the connection first has already released it there. */
     if (TE_RC_GET_ERROR(rc) == TE_EBADF)
         rc = 0;
