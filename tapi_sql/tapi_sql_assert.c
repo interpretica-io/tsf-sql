@@ -51,12 +51,26 @@ as_number(const tapi_sql_value *v, double *out)
 {
     char *end = NULL;
 
-    if (is_number(v->type))
+    switch (v->type)
     {
-        *out = v->type == TAPI_SQL_UINT ? (double)v->u : v->f;
-        return true;
+        case TAPI_SQL_BOOL:
+        case TAPI_SQL_INT:
+            *out = (double)v->i;
+            return true;
+        case TAPI_SQL_UINT:
+            *out = (double)v->u;
+            return true;
+        case TAPI_SQL_FLOAT:
+            *out = v->f;
+            return true;
+        case TAPI_SQL_DECIMAL:
+        case TAPI_SQL_TEXT:
+            /* A decimal is its digits, whoever made the value. */
+            break;
+        default:
+            return false;
     }
-    if (v->type != TAPI_SQL_TEXT || v->str == NULL || v->len == 0)
+    if (v->str == NULL || v->len == 0)
         return false;
 
     *out = strtod(v->str, &end);

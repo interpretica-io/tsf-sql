@@ -264,7 +264,7 @@ tsf-cybersec; `tapi_sql` itself does not link it.
 The password of a connection is a field of `tapi_sql_config` and travels
 to the agent inside the connect RPC. It is not on any command line (no
 program is run), not in the log lines of the RPC wrappers (statement
-texts are logged, cut at 200 characters; bound values and fetched rows
+texts are logged, cut at 240 characters; bound values and fetched rows
 are not), not in `tapi_sql_conn_describe()`, and any driver message that
 quotes it is blanked (`***`) on the agent before it is returned. The
 copies kept in memory - for reconnecting, and for MariaDB's

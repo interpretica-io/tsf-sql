@@ -282,8 +282,10 @@ pg_connect(const ta_sql_config *cfg, void **dc, ta_sql_errinfo *err)
         return -1;
     }
 
-    /* Binary values are read back as hex whatever the server default. */
-    if (pg_cmd(c, "SET bytea_output = hex", NULL, err) != 0)
+    /* Binary values are read back as hex whatever the server default;
+     * notices ("table does not exist, skipping") stay off stderr. */
+    if (pg_cmd(c, "SET bytea_output = hex; "
+                  "SET client_min_messages = warning", NULL, err) != 0)
     {
         PQfinish(c->conn);
         free(c);

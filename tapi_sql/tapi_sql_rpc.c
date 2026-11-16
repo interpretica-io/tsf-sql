@@ -33,7 +33,20 @@
                               TE_RC(TE_TAPI, TE_ECORRUPTED), false)
 
 /** How much of a statement goes into the log. */
-#define SQL_LOG_LEN     200
+#define SQL_LOG_LEN     240
+
+/*
+ * A statement text cut for the log. The TE logger takes no "%.*s", so
+ * the cut is made here.
+ */
+static const char *
+sql_for_log(const char *sql, char *buf, size_t size)
+{
+    snprintf(buf, size, "%s", sql != NULL ? sql : "");
+    if (sql != NULL && strlen(sql) >= size && size > 4)
+        memcpy(buf + size - 4, "...", 4);
+    return buf;
+}
 
 /* An RPC string argument is never NULL. */
 static char *
@@ -210,6 +223,7 @@ rpc_sql_execute(rcf_rpc_server *rpcs, int handle, const char *sql,
 {
     tarpc_sql_execute_in  in;
     tarpc_sql_execute_out out;
+    char                  text[SQL_LOG_LEN];
 
     memset(&in, 0, sizeof(in));
     memset(&out, 0, sizeof(out));
@@ -218,9 +232,10 @@ rpc_sql_execute(rcf_rpc_server *rpcs, int handle, const char *sql,
 
     rcf_rpc_call(rpcs, "sql_execute", &in, &out);
     CHECK_RPC_ERRNO_UNCHANGED(sql_execute, out.retval);
-    TAPI_RPC_LOG(rpcs, sql_execute, "handle=%d \"%.*s\"",
-                 "%r affected=%lld %llu us", handle, SQL_LOG_LEN, arg(sql),
-                 out.retval, (long long)out.affected,
+    TAPI_RPC_LOG(rpcs, sql_execute, "handle=%d \"%s\"",
+                 "%r affected=%lld %llu us", handle,
+                 sql_for_log(sql, text, sizeof(text)), out.retval,
+                 (long long)out.affected,
                  (unsigned long long)out.elapsed_us);
 
     if (out.retval == 0 && affected != NULL)
@@ -238,6 +253,7 @@ rpc_sql_prepare(rcf_rpc_server *rpcs, int handle, const char *sql,
 {
     tarpc_sql_prepare_in  in;
     tarpc_sql_prepare_out out;
+    char                  text[SQL_LOG_LEN];
 
     memset(&in, 0, sizeof(in));
     memset(&out, 0, sizeof(out));
@@ -246,9 +262,10 @@ rpc_sql_prepare(rcf_rpc_server *rpcs, int handle, const char *sql,
 
     rcf_rpc_call(rpcs, "sql_prepare", &in, &out);
     CHECK_RPC_ERRNO_UNCHANGED(sql_prepare, out.retval);
-    TAPI_RPC_LOG(rpcs, sql_prepare, "handle=%d \"%.*s\"",
-                 "%r stmt=%d nparams=%d", handle, SQL_LOG_LEN, arg(sql),
-                 out.retval, out.stmt, out.nparams);
+    TAPI_RPC_LOG(rpcs, sql_prepare, "handle=%d \"%s\"",
+                 "%r stmt=%d nparams=%d", handle,
+                 sql_for_log(sql, text, sizeof(text)), out.retval, out.stmt,
+                 out.nparams);
 
     if (out.retval == 0)
     {
@@ -445,6 +462,7 @@ rpc_sql_async_start(rcf_rpc_server *rpcs, int handle, const char *sql)
 {
     tarpc_sql_async_start_in  in;
     tarpc_sql_async_start_out out;
+    char                      text[SQL_LOG_LEN];
 
     memset(&in, 0, sizeof(in));
     memset(&out, 0, sizeof(out));
@@ -453,8 +471,8 @@ rpc_sql_async_start(rcf_rpc_server *rpcs, int handle, const char *sql)
 
     rcf_rpc_call(rpcs, "sql_async_start", &in, &out);
     CHECK_RPC_ERRNO_UNCHANGED(sql_async_start, out.retval);
-    TAPI_RPC_LOG(rpcs, sql_async_start, "handle=%d \"%.*s\"", "%r", handle,
-                 SQL_LOG_LEN, arg(sql), out.retval);
+    TAPI_RPC_LOG(rpcs, sql_async_start, "handle=%d \"%s\"", "%r", handle,
+                 sql_for_log(sql, text, sizeof(text)), out.retval);
 
     RETVAL_TE_ERRNO(sql_async_start, out.retval);
 }
