@@ -1,0 +1,99 @@
+name: ci
+
+# Two checks on every push and pull request.
+#
+# lint: the static checks of ci/lint.sh - layout, licence headers,
+# cppcheck, shellcheck, actionlint. Run it locally the same way.
+#
+# drivers: ta_sql built with all three drivers against the real client
+# libraries (libsqlite3, libpq, MariaDB Connector/C) and driven through
+# its public API by ci/driver_test.c under AddressSanitizer and UBSan,
+# against a temporary SQLite file and PostgreSQL and MariaDB service
+# containers. Every supported backend runs the same checks; an engine
+# that was not tested fails the job (TSF_SQL_REQUIRE_ALL). The RPC layer
+# and the engine-side TAPI need a Test Environment build and are
+# exercised end to end by tsf-sql-ts.
+#
+# The database passwords below are fixtures of containers that exist for
+# the length of one job; they protect nothing.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ACTIONLINT_VERSION: 1.7.12
+  ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the linters
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cppcheck shellcheck
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -fsSL -o "/tmp/${tarball}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
+          echo "${ACTIONLINT_SHA256}  /tmp/${tarball}" | sha256sum -c -
+          sudo tar -xzf "/tmp/${tarball}" -C /usr/local/bin actionlint
+
+      - name: Lint
+        run: ci/lint.sh
+
+  drivers:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: tsf
+          POSTGRES_PASSWORD: tsf-ci-secret
+          POSTGRES_DB: tsf
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U tsf -d tsf"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_USER: tsf
+          MARIADB_PASSWORD: tsf-ci-secret
+          MARIADB_DATABASE: tsf
+          MARIADB_ROOT_PASSWORD: tsf-ci-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install the client libraries and the compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential pkg-config \
+            libsqlite3-dev libpq-dev libmariadb-dev
+
+      - name: Driver contract tests (ASan + UBSan), all three engines
+        env:
+          TSF_SQL_PG: 127.0.0.1 5432 tsf tsf-ci-secret tsf
+          TSF_SQL_MY: 127.0.0.1 3306 tsf tsf-ci-secret tsf
+          TSF_SQL_REQUIRE_ALL: "1"
+        run: ci/driver-test.sh

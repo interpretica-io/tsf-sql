@@ -272,7 +272,7 @@ ta_sql_cell_decode(const char *cell, size_t len, char *tag, char **data,
         for (i = 1; i + 1 < len; i += 2)
         {
             unsigned int byte;
-            char         pair[3] = { cell[i], cell[i + 1], '\0' };
+            const char   pair[3] = { cell[i], cell[i + 1], '\0' };
 
             if (!isxdigit((unsigned char)pair[0]) ||
                 !isxdigit((unsigned char)pair[1]))

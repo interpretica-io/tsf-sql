@@ -440,7 +440,8 @@ ta_sql_meta_build(const ta_sql_driver *drv, void *dc, int kind,
              * native type name. */
             if (kind == TA_SQL_META_COLUMNS && col == 1)
             {
-                char letter[2] = { ta_sql_type_letter(r->f[2]), '\0' };
+                const char letter[2] = { ta_sql_type_letter(r->f[2]),
+                                         '\0' };
 
                 put(rows, false, letter);
             }
