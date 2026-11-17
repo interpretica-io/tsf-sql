@@ -122,6 +122,8 @@ typedef enum tapi_sql_err_class {
     TAPI_SQL_ERR_TLS = 12,          /**< TLS could not be set up. */
     TAPI_SQL_ERR_PERMISSION = 13,   /**< The account may not do this. */
     TAPI_SQL_ERR_CONNECT = 14,      /**< The server cannot be reached. */
+    TAPI_SQL_ERR_READ_ONLY = 15,    /**< No writes here: a replica, a
+                                         read-only transaction or file. */
 } tapi_sql_err_class;
 
 /** Kinds of deadline. */

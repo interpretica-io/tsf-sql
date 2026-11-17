@@ -95,6 +95,8 @@ pg_class(const char *state, const char *msg)
     }
     if (strcmp(state, "42501") == 0)
         return TA_SQL_ERR_PERMISSION;
+    if (strcmp(state, "25006") == 0)
+        return TA_SQL_ERR_READ_ONLY;
     if (starts(state, "28"))
         return TA_SQL_ERR_AUTH;
     if (starts(state, "08") || starts(state, "57P"))

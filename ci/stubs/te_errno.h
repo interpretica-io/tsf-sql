@@ -35,6 +35,7 @@ typedef int te_errno;
 #define TE_ENOMEM           ENOMEM
 #define TE_EOPNOTSUPP       EOPNOTSUPP
 #define TE_EINPROGRESS      EINPROGRESS
+#define TE_EROFS            EROFS
 #define TE_EFAIL            10001
 
 #endif /* !CI_STUB_TE_ERRNO_H */

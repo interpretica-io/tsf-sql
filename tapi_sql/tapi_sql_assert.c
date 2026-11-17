@@ -14,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <time.h>
+#include <unistd.h>
 
 #include "te_defs.h"
 #include "te_errno.h"
@@ -639,6 +641,48 @@ tapi_sql_assert_number(tapi_sql_conn *conn, const char *sql, double expected,
         te_string_free(&details);
     }
     tapi_sql_result_free(&res);
+    return rc;
+}
+
+/* See description in tapi_sql_assert.h */
+te_errno
+tapi_sql_assert_eventually(tapi_sql_conn *conn, const char *sql,
+                           int64_t expected, unsigned int timeout_ms,
+                           unsigned int *waited_ms)
+{
+    te_string       details = TE_STRING_INIT;
+    struct timespec start;
+    struct timespec now;
+    unsigned int    elapsed = 0;
+    int64_t         got = 0;
+    te_errno        rc;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for (;;)
+    {
+        /* A query that fails (the table is not there yet) is one more
+         * way of not having arrived. */
+        rc = tapi_sql_query_int(conn, sql, &got);
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        elapsed = (unsigned int)((now.tv_sec - start.tv_sec) * 1000 +
+                                 (now.tv_nsec - start.tv_nsec) / 1000000);
+        if ((rc == 0 && got == expected) || elapsed >= timeout_ms)
+            break;
+        usleep(20000);
+    }
+    if (waited_ms != NULL)
+        *waited_ms = elapsed;
+    if (rc == 0 && got == expected)
+        return 0;
+
+    if (rc != 0)
+        te_string_append(&details, "after %u ms the query still fails: %s",
+                         elapsed, tapi_sql_last_error(conn)->message);
+    else
+        te_string_append(&details, "after %u ms: expected %lld, got %lld",
+                         elapsed, (long long)expected, (long long)got);
+    rc = failed(details.ptr, "an expected value never arrived");
+    te_string_free(&details);
     return rc;
 }
 

@@ -131,6 +131,7 @@ tapi_sql_err_class2str(tapi_sql_err_class cls)
         case TAPI_SQL_ERR_TLS: return "tls";
         case TAPI_SQL_ERR_PERMISSION: return "permission";
         case TAPI_SQL_ERR_CONNECT: return "connect";
+        case TAPI_SQL_ERR_READ_ONLY: return "read only";
         default: return "other";
     }
 }

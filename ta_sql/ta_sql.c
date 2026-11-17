@@ -344,6 +344,7 @@ cls2rc(int cls)
         case TA_SQL_ERR_TLS: e = TE_EPROTO; break;
         case TA_SQL_ERR_PERMISSION: e = TE_EPERM; break;
         case TA_SQL_ERR_CONNECT: e = TE_ECONNREFUSED; break;
+        case TA_SQL_ERR_READ_ONLY: e = TE_EROFS; break;
         default: e = TE_EFAIL; break;
     }
     return TE_RC(TE_TA_UNIX, e);

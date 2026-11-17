@@ -114,6 +114,8 @@ my_class(unsigned int code)
             return TA_SQL_ERR_AUTH;
         case 1044: case 1142: case 1143: case 1227: case 1370:
             return TA_SQL_ERR_PERMISSION;
+        case 1290: case 1792: case 1836:
+            return TA_SQL_ERR_READ_ONLY;
         case 2002: case 2003: case 2005:
             return TA_SQL_ERR_CONNECT;
         case 2006: case 2013: case 1927: case 1053: case 1152: case 1080:

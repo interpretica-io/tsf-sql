@@ -227,6 +227,23 @@ extern te_errno tapi_sql_assert_number(tapi_sql_conn *conn, const char *sql,
                                        double rel_tol);
 
 /**
+ * Assert that a number arrives: the query's first cell becomes
+ * @p expected within @p timeout_ms. The query is repeated until it
+ * does. For state that is reached, not set: a replica catching up, a
+ * background job finishing.
+ *
+ * @param[in]  conn        Connection.
+ * @param[in]  sql         A query yielding one number.
+ * @param[in]  expected    The value to wait for.
+ * @param[in]  timeout_ms  How long to wait.
+ * @param[out] waited_ms   How long it took (may be @c NULL).
+ */
+extern te_errno tapi_sql_assert_eventually(tapi_sql_conn *conn,
+                                           const char *sql, int64_t expected,
+                                           unsigned int timeout_ms,
+                                           unsigned int *waited_ms);
+
+/**
  * Assert transaction atomicity: a transaction that does not commit
  * leaves no trace. The probe query is run, a transaction is begun, the
  * statements are executed until one fails (the last is normally the

@@ -327,6 +327,17 @@ check_errors(int h)
 
     /* The connection is still usable after each of these. */
     CHECK(ta_sql_ping(h, NULL) == 0, "ping after errors failed");
+
+    /* A read-only transaction takes no writes (where the engine has
+     * the statement). */
+    if (ta_sql_execute(h, "START TRANSACTION READ ONLY", NULL, NULL) == 0)
+    {
+        rc = ta_sql_execute(h, "DELETE FROM child", NULL, NULL);
+        CHECK(rc == TE_EROFS && err_cls(h) == TA_SQL_ERR_READ_ONLY,
+              "write in a read-only transaction: rc=%d cls=%d %s", rc,
+              err_cls(h), err_msg(h));
+    }
+    ta_sql_execute(h, "ROLLBACK", NULL, NULL);
 }
 
 static void

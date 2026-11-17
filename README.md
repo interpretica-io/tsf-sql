@@ -114,7 +114,8 @@ A failure of the database comes back as a TE status and, on the
 connection, as a normalised error (`tapi_sql_last_error()`): an error
 class that is the same on every engine - syntax, not found, constraint,
 deadlock, serialization, lock timeout, timeout, cancelled, connection
-lost, authentication, TLS, permission, connect - plus the engine's own
+lost, authentication, TLS, permission, connect, read only - plus the
+engine's own
 SQLSTATE, code and message.
 
 ## Values
@@ -212,6 +213,7 @@ emits a TE verdict with a stable text, and returns `TE_EFAIL`.
 | `tapi_sql_assert_schema` | The table has the expected columns, normalised types, nullability and key |
 | `tapi_sql_assert_query_equal` / `_assert_result` | Two results are equal |
 | `tapi_sql_assert_number` | A number is within an absolute or relative tolerance |
+| `tapi_sql_assert_eventually` | A number arrives within a deadline (a replica catching up) |
 | `tapi_sql_assert_atomic` | A transaction with a failing statement leaves no trace |
 | `tapi_sql_assert_persistent` | The state is the same after a reconnection |
 

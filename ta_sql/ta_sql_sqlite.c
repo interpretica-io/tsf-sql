@@ -70,6 +70,8 @@ lite_err(lite_conn *c, sqlite3 *db, int res, ta_sql_errinfo *err)
                                                 TA_SQL_ERR_CANCELLED;
             break;
         case SQLITE_READONLY:
+            cls = TA_SQL_ERR_READ_ONLY;
+            break;
         case SQLITE_PERM:
         case SQLITE_AUTH:
             cls = TA_SQL_ERR_PERMISSION;
