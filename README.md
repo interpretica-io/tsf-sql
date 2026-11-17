@@ -8,9 +8,9 @@ security posture. It is an external TE repository, consumed with the
 `TE_EXT_REPO` builder directive.
 
 The database is reached from a Test Agent. The connection, its prepared
-statements and its transaction live in the agent's RPC server, over the
-engine's own client library, linked in - no `psql`, `mysql` or `sqlite3`
-program is run and nothing is scraped. The test holds an opaque
+statements and its transaction live in the agent's RPC server, which
+links the engine's own client library. No `psql`, `mysql` or `sqlite3`
+program is run and no program output is parsed. The test holds an opaque
 connection and drives it through one API whatever the engine.
 
 | Engine | Driver | Status |
@@ -111,12 +111,11 @@ tapi_sql_disconnect(db);
 | `tapi_sql_stats` | Connections and statements the agent still holds |
 
 A failure of the database comes back as a TE status and, on the
-connection, as a normalised error (`tapi_sql_last_error()`): an error
-class that is the same on every engine - syntax, not found, constraint,
-deadlock, serialization, lock timeout, timeout, cancelled, connection
-lost, authentication, TLS, permission, connect, read only - plus the
-engine's own
-SQLSTATE, code and message.
+connection, as a normalised error (`tapi_sql_last_error()`). The error
+has a class that is the same on every engine (syntax, not found,
+constraint, deadlock, serialization, lock timeout, timeout, cancelled,
+connection lost, authentication, TLS, permission, connect, read only)
+and keeps the engine's own SQLSTATE, code and message.
 
 ## Values
 
@@ -134,9 +133,9 @@ SQLSTATE, code and message.
 | JSON | `tapi_sql_json()` | Text; the engine's JSON type where it has one |
 
 Parameters are written `?` on every engine (the PostgreSQL driver
-renumbers them to `$1`..; write `??` for a literal question mark). That
-is the only thing translated. tsf-sql is not an SQL dialect layer: the
-statement a test writes is the statement the database gets.
+renumbers them to `$1`..; write `??` for a literal question mark).
+Nothing else is translated, so the database gets exactly the statement
+the test wrote, in that engine's dialect.
 
 A result is never materialised whole unless the test asks for that with
 `tapi_sql_query()`. `tapi_sql_fetch()` returns one bounded batch; the
@@ -208,7 +207,7 @@ emits a TE verdict with a stable text, and returns `TE_EFAIL`.
 |---|---|
 | `tapi_sql_assert_row_count` | A table (or a table with a condition) has N rows |
 | `tapi_sql_assert_pk_unique` | A key is unique and has no NULL |
-| `tapi_sql_assert_referential` | Every reference has its row - checked in the data, so it finds what a missing constraint let in |
+| `tapi_sql_assert_referential` | Every reference has its row; checked in the data, so it finds what a missing constraint let in |
 | `tapi_sql_assert_not_null` | No NULL in the columns |
 | `tapi_sql_assert_schema` | The table has the expected columns, normalised types, nullability and key |
 | `tapi_sql_assert_query_equal` / `_assert_result` | Two results are equal |
@@ -229,8 +228,9 @@ throughput, connection establishment latency, error rate and timeout
 frequency, reported as count, minimum, maximum, mean and the percentiles
 asked for, in the log as a TE measurement artifact with a line graph of
 the samples. A statement's latency is measured on the agent around the
-driver call, so the RPC is not in it. One statement at a time from one
-session: an instrument for a functional suite, not a load generator.
+driver call, so the RPC is not in it. The measurements run one statement
+at a time from one session; that suits a functional suite and cannot
+replace a database load generator.
 
 ## Security checks
 
@@ -250,31 +250,34 @@ logging off. A check the account may not read reports
 be allowed, inside a transaction it rolls back; a mutating statement
 there is the test's explicit choice.
 
-SQL injection is a property of an application, not of a driver, and is
-tested where the application takes input: `tapi_sql_injection_payloads()`
-gives hostile inputs and `tapi_sql_audit_injection()` hands each to a
-callback of the test that drives the application and says whether it
-misbehaved. Nothing assumes the database driver is vulnerable.
+SQL injection happens where an application builds a statement from its
+input, so it is tested through that input.
+`tapi_sql_injection_payloads()` gives hostile inputs and
+`tapi_sql_audit_injection()` hands each to a callback of the test, which
+drives the application and says whether it misbehaved. No check assumes
+that the database driver is vulnerable.
 
-Findings have a stable check identifier, a subject and a severity - the
-model of tsf-cybersec. `tapi_sql_cybersec.h` (header-only) copies a
+Findings have a stable check identifier, a subject and a severity, as
+in tsf-cybersec. `tapi_sql_cybersec.h` (header-only) copies a
 report into a `tapi_cybersec_report` for a suite that builds
 tsf-cybersec; `tapi_sql` itself does not link it.
 
 ## Secrets
 
 The password of a connection is a field of `tapi_sql_config` and travels
-to the agent inside the connect RPC. It is not on any command line (no
-program is run), not in the log lines of the RPC wrappers (statement
-texts are logged, cut at 240 characters; bound values and fetched rows
-are not), not in `tapi_sql_conn_describe()`, and any driver message that
-quotes it is blanked (`***`) on the agent before it is returned. The
-copies kept in memory - for reconnecting, and for MariaDB's
-cancel-by-second-connection - are zeroed when the connection is closed.
+to the agent inside the connect RPC, the only place it goes. No program
+is run, so there is no command line for it to appear on. The RPC
+wrappers log statement texts (cut at 240 characters) and leave out bound
+values, fetched rows and the password; `tapi_sql_conn_describe()` leaves
+it out too. When a client library quotes the password in an error
+message, the agent replaces it with `***` before returning the message.
+Two copies stay in memory, one for reconnecting and one for MariaDB's
+cancel through a second connection, and both are zeroed when the
+connection is closed.
 
-What a test puts in a statement text is the test's business:
-`ALTER USER ... PASSWORD '...'` in a `tapi_sql_execute()` is logged like
-any other statement. Bind it.
+A statement text is logged whatever it contains, so
+`ALTER USER ... PASSWORD '...'` passed to `tapi_sql_execute()` ends up
+in the log. Bind such a value as a parameter instead.
 
 ## Wire format
 
@@ -320,12 +323,12 @@ is a complete suite to copy from.
 
 - **SQLite.** The database is a file on the agent. Foreign keys are
   switched on for every connection so that a schema behaves the same as
-  on the servers. SQLite stores by value, not by column: a decimal bound
-  into a `DECIMAL` column comes back as a float, and types are reported
-  from the declared column type. CHECK constraints do not appear in
+  on the servers. SQLite types each stored value on its own and treats
+  the column type as a hint, so a decimal bound into a `DECIMAL` column
+  comes back as a float; column types are reported as declared. CHECK constraints do not appear in
   introspection and key constraints have no names (`primary`, `fk_0`).
-- **PostgreSQL.** NOT NULL is reported as a column property, not as a
-  constraint. `read uncommitted` is accepted and behaves as read
+- **PostgreSQL.** NOT NULL is reported as a property of the column
+  (PostgreSQL's catalogue lists it among the CHECK constraints). `read uncommitted` is accepted and behaves as read
   committed. Verifying the server needs `tls_ca`.
 - **MySQL / MariaDB.** Built against MariaDB Connector/C. `tinyint(1)`
   is a boolean. "Prefer TLS" tries an encrypted connection and falls
@@ -342,7 +345,7 @@ orchestration, and translation between SQL dialects.
 
 ## CI
 
-`ci/lint.sh` - layout, licence headers, cppcheck, shellcheck,
+`ci/lint.sh` checks layout, licence headers, cppcheck, shellcheck and
 actionlint. `ci/driver-test.sh` builds `ta_sql` with the three drivers
 under AddressSanitizer and UBSan and runs `ci/driver_test.c` against a
 temporary SQLite file and real PostgreSQL and MariaDB servers
